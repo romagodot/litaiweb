@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LitAI Web Workspace</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', -apple-system, sans-serif; }
+        body { background: #05070e; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; user-select: none; }
+        
+        /* Боковая панель */
+        #sidebar { width: 280px; background: #0a0d18; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.25s ease; z-index: 100; }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid #1e293b; display: flex; flex-direction: column; gap: 12px; }
+        .brand { font-size: 18px; font-weight: 800; color: #eab308; letter-spacing: 0.5px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+        .settings-icon { cursor: pointer; font-size: 18px; opacity: 0.8; transition: opacity 0.2s, transform 0.2s; }
+        .settings-icon:hover { opacity: 1; transform: rotate(45deg); }
+
+        .new-chat-btn {
+            background: #eab308; color: #05070e; border: none; padding: 10px 14px; border-radius: 8px;
+            font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 8px; transition: all 0.2s;
+        }
+        .new-chat-btn:hover { background: #facc15; }
+
+        .chat-list { flex: 1; overflow-y: auto; padding: 10px 8px; display: flex; flex-direction: column; gap: 4px; }
+        .chat-item {
+            display: flex; align-items: center; justify-content: space-between; padding: 10px 12px;
+            border-radius: 8px; cursor: pointer; color: #94a3b8; font-size: 13.5px; transition: all 0.15s;
+        }
+        .chat-item:hover { background: #131a2e; color: #f1f5f9; }
+        .chat-item.active { background: #1a233a; color: #eab308; font-weight: 600; border-left: 3px solid #eab308; }
+        
+        .chat-item .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .chat-actions { display: none; gap: 6px; }
+        .chat-item:hover .chat-actions { display: flex; }
+        .action-icon { cursor: pointer; opacity: 0.7; font-size: 13px; padding: 2px 4px; }
+        .action-icon:hover { opacity: 1; color: #eab308; }
+
+        /* Главный экран */
+        #main { flex: 1; display: flex; flex-direction: column; height: 100vh; background: #05070e; position: relative; }
+        header { padding: 14px 24px; background: #0a0d18; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
+        header .left-wrap { display: flex; align-items: center; gap: 12px; }
+        header h1 { font-size: 16px; font-weight: 700; color: #eab308; }
+        .menu-toggle { display: none; background: transparent; border: none; color: #eab308; font-size: 20px; cursor: pointer; }
+        .badge { font-size: 11.5px; background: #854d0e22; color: #eab308; border: 1px solid #854d0e55; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+        #chat { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; max-width: 900px; width: 100%; margin: 0 auto; user-select: text; }
+        
+        .msg { display: flex; flex-direction: column; max-width: 85%; line-height: 1.6; font-size: 14.5px; word-wrap: break-word; }
+        .msg.user { align-self: flex-end; background: #eab308; color: #05070e; padding: 12px 18px; border-radius: 18px 18px 4px 18px; font-weight: 500; }
+        .msg.assistant { align-self: flex-start; background: #0e1322; border: 1px solid #1e293b; color: #f8fafc; padding: 14px 18px; border-radius: 18px 18px 18px 4px; width: 100%; }
+        
+        .msg .sender { font-size: 11px; margin-bottom: 6px; opacity: 0.85; font-weight: 700; display: flex; justify-content: space-between; gap: 12px; }
+        .msg.user .sender { text-align: right; justify-content: flex-end; color: #05070e; }
+        .msg.assistant .sender { color: #eab308; }
+        .msg .time-tag { opacity: 0.6; font-weight: 400; font-size: 10.5px; }
+        .msg .text { white-space: pre-wrap; }
+
+        /* Кнопка копирования */
+        .msg-footer { margin-top: 10px; padding-top: 6px; border-top: 1px solid #1e293b; display: flex; justify-content: flex-end; }
+        .copy-btn {
+            background: #131a2e; color: #94a3b8; border: 1px solid #1e293b; padding: 4px 10px;
+            border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600; transition: all 0.2s;
+        }
+        .copy-btn:hover { color: #eab308; border-color: #eab308; background: #1a233a; }
+        .copy-btn.copied { color: #22c55e; border-color: #22c55e; }
+
+        #controls { padding: 16px 24px; background: #05070e; display: flex; justify-content: center; }
+        .box { max-width: 900px; width: 100%; background: #0a0d18; border: 1px solid #1e293b; border-radius: 24px; padding: 6px 14px; display: flex; align-items: center; }
+        .box:focus-within { border-color: #eab308; }
+
+        textarea { width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: 14.5px; padding: 8px; resize: none; max-height: 140px; height: 40px; }
+        button#send-btn { background: #eab308; color: #05070e; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; flex-shrink: 0; font-weight: bold; font-size: 15px; transition: background 0.2s; }
+        button#send-btn:hover { background: #facc15; }
+        button#send-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+        /* Модальные окна */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-box {
+            background: #0a0d18; border: 1px solid #1e293b; border-radius: 16px;
+            padding: 22px; width: 400px; max-width: 90vw; display: flex; flex-direction: column; gap: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .modal-box h2 { font-size: 16px; color: #eab308; font-weight: 700; }
+        .modal-box p { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+        .modal-box input {
+            background: #131a2e; border: 1px solid #1e293b; color: #fff;
+            padding: 10px 14px; border-radius: 10px; font-size: 13.5px; outline: none; transition: border-color 0.2s;
+        }
+        .modal-box input:focus { border-color: #eab308; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+        .modal-btn {
+            padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
+        }
+        .modal-btn.confirm { background: #eab308; color: #05070e; }
+        .modal-btn.confirm:hover { background: #facc15; }
+        .modal-btn.cancel { background: #131a2e; color: #94a3b8; border: 1px solid #1e293b; }
+        .modal-btn.cancel:hover { color: #fff; background: #1a233a; }
+
+        /* Мобильный адаптив */
+        @media (max-width: 768px) {
+            #sidebar { position: absolute; height: 100vh; transform: translateX(-100%); }
+            #sidebar.open { transform: translateX(0); }
+            .menu-toggle { display: block; }
+            .msg { max-width: 92%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Боковая панель -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <span>LitAI Web</span>
+                <span class="settings-icon" onclick="openSettingsModal()" title="Настройки API">⚙️</span>
+            </div>
+            <button class="new-chat-btn" onclick="createNewChat()">+ Новый чат</button>
+        </div>
+        <div class="chat-list" id="chat-list"></div>
+    </div>
+
+    <!-- Основной экран -->
+    <div id="main">
+        <header>
+            <div class="left-wrap">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <h1 id="current-chat-title">Чат 1</h1>
+            </div>
+            <span class="badge" id="status-badge">● Подключено</span>
+        </header>
+
+        <div id="chat"></div>
+
+        <div id="controls">
+            <div class="box">
+                <textarea id="input" placeholder="Задайте вопрос LitAI..." rows="1"></textarea>
+                <button id="send-btn" onclick="send()">➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно переименования -->
+    <div id="rename-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>Изменить название</h2>
+            <input type="text" id="rename-input" placeholder="Введите название..." />
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeModal('rename-modal')">Отмена</button>
+                <button class="modal-btn confirm" onclick="confirmRename()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек API -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>Настройки подключения</h2>
+            <p>Укажите URL-адрес сервера LitAI или туннеля (Cloudflare Tunnel / ngrok):</p>
+            <input type="text" id="api-url-input" placeholder="https://xxxx.trycloudflare.com" />
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeModal('settings-modal')">Отмена</button>
+                <button class="modal-btn confirm" onclick="saveSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat');
+        const chatListEl = document.getElementById('chat-list');
+        const currentChatTitleEl = document.getElementById('current-chat-title');
+        const input = document.getElementById('input');
+        const sendBtn = document.getElementById('send-btn');
+        const sidebar = document.getElementById('sidebar');
+        
+        let apiBaseUrl = localStorage.getItem('litai_api_url') || 'http://127.0.0.1:8088';
+        let chats = JSON.parse(localStorage.getItem('litai_chats') || '[]');
+        let currentChatId = null;
+        let chatToRenameId = null;
+
+        const systemPrompt = { 
+            role: "system", 
+            content: "Тебя зовут LitAI. Ты — умный, вежливый и точный ИИ-ассистент. На любые вопросы о том, кто ты или как тебя зовут, отвечай строго, что ты LitAI." 
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('api-url-input').value = apiBaseUrl;
+            if (chats.length === 0) {
+                createNewChat();
+            } else {
+                renderChatList();
+                switchChat(chats[0].id);
+            }
+        });
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+        }
+
+        function saveChatsToStorage() {
+            localStorage.setItem('litai_chats', JSON.stringify(chats));
+        }
+
+        function createNewChat() {
+            const num = chats.length + 1;
+            const newChat = {
+                id: 'chat_' + Date.now(),
+                title: 'Чат ' + num,
+                messages: []
+            };
+            chats.unshift(newChat);
+            saveChatsToStorage();
+            renderChatList();
+            switchChat(newChat.id);
+            if (window.innerWidth <= 768) sidebar.classList.remove('open');
+        }
+
+        function renderChatList() {
+            chatListEl.innerHTML = '';
+            chats.forEach(c => {
+                const item = document.createElement('div');
+                item.className = `chat-item ${c.id === currentChatId ? 'active' : ''}`;
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'title';
+                titleSpan.textContent = c.title;
+                titleSpan.onclick = () => {
+                    switchChat(c.id);
+                    if (window.innerWidth <= 768) sidebar.classList.remove('open');
+                };
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'chat-actions';
+                
+                const editIcon = document.createElement('span');
+                editIcon.className = 'action-icon';
+                editIcon.textContent = '✏️';
+                editIcon.title = 'Переименовать';
+                editIcon.onclick = (e) => { e.stopPropagation(); openRenameModal(c.id, c.title); };
+
+                const delIcon = document.createElement('span');
+                delIcon.className = 'action-icon';
+                delIcon.textContent = '🗑️';
+                delIcon.title = 'Удалить';
+                delIcon.onclick = (e) => { e.stopPropagation(); deleteChat(c.id); };
+
+                actionsDiv.appendChild(editIcon);
+                actionsDiv.appendChild(delIcon);
+
+                item.appendChild(titleSpan);
+                item.appendChild(actionsDiv);
+                chatListEl.appendChild(item);
+            });
+        }
+
+        function switchChat(id) {
+            currentChatId = id;
+            const currentChat = chats.find(c => c.id === id);
+            if (!currentChat) return;
+
+            currentChatTitleEl.textContent = currentChat.title;
+            renderMessages(currentChat.messages);
+            renderChatList();
+        }
+
+        function renderMessages(messages) {
+            chatContainer.innerHTML = '';
+            if (messages.length === 0) {
+                addMsgToDOM('assistant', 'LitAI', 'Привет! Я LitAI. Чем могу помочь тебе сегодня?');
+            } else {
+                messages.forEach(m => {
+                    const sender = m.role === 'user' ? 'Вы' : 'LitAI';
+                    addMsgToDOM(m.role, sender, m.content, m.time);
+                });
+            }
+        }
+
+        async function send() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            const currentChat = chats.find(c => c.id === currentChatId);
+            if (!currentChat) return;
+
+            addMsgToDOM('user', 'Вы', text);
+            currentChat.messages.push({ role: "user", content: text });
+            saveChatsToStorage();
+
+            input.value = '';
+            input.style.height = '40px';
+            sendBtn.disabled = true;
+
+            const startTime = performance.now();
+            const { textEl, senderEl, footerEl } = addMsgToDOM('assistant', 'LitAI', 'Печатает...');
+
+            try {
+                const apiMessages = [systemPrompt, ...currentChat.messages];
+
+                const res = await fetch(`${apiBaseUrl}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: apiMessages, stream: true, temperature: 0.7 })
+                });
+
+                if (!res.ok) throw new Error('Ошибка сервера');
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let fullText = '';
+                let buffer = '';
+                let isFirstToken = true;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith('data: ')) {
+                            const jsonStr = trimmed.replace('data: ', '').trim();
+                            if (jsonStr === '[DONE]') break;
+                            try {
+                                const parsed = JSON.parse(jsonStr);
+                                const token = parsed.choices[0]?.delta?.content || '';
+                                if (token) {
+                                    if (isFirstToken) {
+                                        textEl.textContent = '';
+                                        isFirstToken = false;
+                                    }
+                                    fullText += token;
+                                    textEl.textContent = fullText;
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+                senderEl.innerHTML = `<span>LitAI</span><span class="time-tag">⏱ ${duration} сек</span>`;
+
+                if (!fullText) textEl.textContent = '[Пустой ответ от модели]';
+
+                currentChat.messages.push({ role: "assistant", content: fullText, time: `${duration} сек` });
+                saveChatsToStorage();
+
+                addCopyButton(footerEl, fullText);
+
+            } catch (e) {
+                textEl.textContent = '[Ошибка связи с локальным сервером LitAI. Проверьте адрес в настройках]';
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function addMsgToDOM(role, sender, text, timeTag) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            
+            const senderEl = document.createElement('div');
+            senderEl.className = 'sender';
+            senderEl.innerHTML = `<span>${sender}</span>` + (timeTag ? `<span class="time-tag">⏱ ${timeTag}</span>` : '');
+
+            const textEl = document.createElement('div');
+            textEl.className = 'text';
+            textEl.textContent = text;
+
+            div.appendChild(senderEl);
+            div.appendChild(textEl);
+
+            let footerEl = null;
+            if (role === 'assistant') {
+                footerEl = document.createElement('div');
+                footerEl.className = 'msg-footer';
+                if (text !== 'Печатает...') {
+                    addCopyButton(footerEl, text);
+                }
+                div.appendChild(footerEl);
+            }
+
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return { textEl, senderEl, footerEl };
+        }
+
+        function addCopyButton(container, textToCopy) {
+            if (!container) return;
+            container.innerHTML = '';
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.textContent = '📋 Скопировать';
+            btn.onclick = () => {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    btn.textContent = '✓ Скопировано';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = '📋 Скопировать';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
+            };
+            container.appendChild(btn);
+        }
+
+        /* Управление модальными окнами */
+        function openRenameModal(id, title) {
+            chatToRenameId = id;
+            const inputEl = document.getElementById('rename-input');
+            inputEl.value = title;
+            document.getElementById('rename-modal').style.display = 'flex';
+            setTimeout(() => inputEl.focus(), 50);
+        }
+
+        function openSettingsModal() {
+            document.getElementById('api-url-input').value = apiBaseUrl;
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function confirmRename() {
+            const newTitle = document.getElementById('rename-input').value.trim();
+            if (newTitle && chatToRenameId) {
+                const c = chats.find(x => x.id === chatToRenameId);
+                if (c) {
+                    c.title = newTitle;
+                    saveChatsToStorage();
+                    renderChatList();
+                    if (chatToRenameId === currentChatId) currentChatTitleEl.textContent = newTitle;
+                }
+            }
+            closeModal('rename-modal');
+        }
+
+        function saveSettings() {
+            const newUrl = document.getElementById('api-url-input').value.trim();
+            if (newUrl) {
+                apiBaseUrl = newUrl.replace(/\/$/, '');
+                localStorage.setItem('litai_api_url', apiBaseUrl);
+            }
+            closeModal('settings-modal');
+        }
+
+        function deleteChat(id) {
+            if (confirm("Удалить этот чат?")) {
+                chats = chats.filter(c => c.id !== id);
+                saveChatsToStorage();
+                if (chats.length === 0) createNewChat();
+                else {
+                    renderChatList();
+                    switchChat(chats[0].id);
+                }
+            }
+        }
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+        });
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+        });
+
+        document.getElementById('rename-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+            if (e.key === 'Escape') closeModal('rename-modal');
+        });
+        document.getElementById('api-url-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); saveSettings(); }
+            if (e.key === 'Escape') closeModal('settings-modal');
+        });
+    </script>
+</body>
+</html>
